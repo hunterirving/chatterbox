@@ -32,21 +32,21 @@ a simple HTML interface for interacting with AI models
 
 4. configure your OpenAI and/or Anthropic API key(s) and other details:
 
-	- rename ```config.py.example``` to ```config.py``` :
-
+	- rename `config.py.example` to `config.py` :
+	<br><br>
 	```shell
 	mv config.py.example config.py
 	```
 
 	- add your OpenAI and/or Anthropic API key(s) to `config.py`:
-
+	<br><br>
 	```python
 	OPEN_AI_API_KEY = "your_openai_api_key"
 	ANTHROPIC_API_KEY = "your_anthropic_api_key_here"
 	```
 
 	- optionally, set your preferred name or username by modifying the USERNAME string:
-
+	<br><br>
 	```python
 	USERNAME = "your_name_or_username_here"
 	```
