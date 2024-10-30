@@ -1,5 +1,5 @@
 # chatterbox 🦜
-a simple HTML interface for interacting with AI models
+a hackable HTML interface for interacting with AI models
 
 ## setup instructions
 
