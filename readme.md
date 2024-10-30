@@ -1,5 +1,6 @@
 # chatterbox 🦜
-a hackable HTML interface for interacting with AI models
+
+<img src="readme_images/chatterbox.jpg">
 
 ## setup instructions
 

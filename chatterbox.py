@@ -54,9 +54,7 @@ app = Flask(__name__, template_folder='.')
 messages = []
 selected_model = "claude-3-5-sonnet-latest"
 username = getattr(config, 'USERNAME', 'User')
-
-system_prompts = [
-]
+system_prompts = getattr(config, 'SYSTEM_PROMPTS', [])
 
 @app.route('/', methods=['GET', 'POST'])
 def web_interface():
@@ -74,7 +72,12 @@ def web_interface():
 	if selected_model not in available_models and available_models:
 		selected_model = available_models[0]
 
-	return render_template('template.html', output=output, selected_model=selected_model, username=username, available_models=available_models)
+	return render_template('template.html', 
+							output=output, 
+							selected_model=selected_model, 
+							username=username, 
+							available_models=available_models,
+							pro_mode=getattr(config, 'PRO_MODE', False))
 
 @app.route('/stream', methods=['POST'])
 def stream():
@@ -132,12 +135,8 @@ def stream():
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
-	def delayed_shutdown():
-		time.sleep(1)  # Give the server a second to return the response
-		shutdown_server()
-
-	threading.Thread(target=delayed_shutdown).start()
-	return 'Server shutting down...'
+	shutdown_server()
+	return '', 204  # Return an empty response with a 204 No Content status
 
 def signal_handler(sig, frame):
 	print('Caught signal, shutting down...')

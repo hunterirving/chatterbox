@@ -4,166 +4,10 @@
 	<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦜</text></svg>">
 	<meta charset="UTF-8">
 	<title>chatterbox</title>
-	<style>
-		body {
-			display: flex;
-			flex-direction: column;
-			height: 100vh;
-			margin: 0;
-			padding: 0;
-			font-family: Arial, sans-serif;
-			background-color: #1e1e1e;
-			color: #fefcf8;
-			font-size: 1.21rem;
-		}
-		#output {
-			flex-grow: 1;
-			overflow-y: auto;
-			padding: 11px;
-			background-color: #111517;
-			display: flex;
-			flex-direction: column-reverse;
-		}
-		#messages {
-			display: flex;
-			flex-direction: column;
-		}
-		#input-form {
-			padding: 11px;
-			background-color: #2b2a33;
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-		}
-		#command {
-			flex-grow: 1;
-			margin-right: 11px;
-			min-height: 38px;
-			max-height: 121px;
-			resize: none;
-			border-radius: 6px;
-			padding: 6px;
-			font-family: inherit;
-			font-size: inherit;
-			border: 1px solid #444;
-			outline: none;
-			overflow-y: hidden;
-			line-height: 1.2;
-			box-sizing: border-box;
-			background-color: #111517;
-			color: #fefcf8;
-		}
-		#command:focus {
-			box-shadow: none;
-		}
-		.message {
-			margin-bottom: 11px;
-			white-space: pre-wrap;
-			word-wrap: break-word;
-		}
-		#submit-button {
-			margin-right: 11px;
-			height: 38px;
-			background-color: #444;
-			color: #fefcf8;
-			border: none;
-			border-radius: 6px;
-			padding: 0 11px;
-			cursor: pointer;
-		}
-		#model {
-			height: 38px;
-			background-color: #444;
-			color: #fefcf8;
-			border: none;
-			border-radius: 6px;
-			padding: 0 6px;
-		}
-	</style>
-	<script>
-		function isScrolledToBottom(el) {
-			return el.scrollHeight - el.clientHeight <= el.scrollTop + 1;
-		}
-
-		function submitForm(event) {
-			event.preventDefault();
-			const form = event.target;
-			const formData = new FormData(form);
-			const messages = document.getElementById('messages');
-			const userMessage = formData.get('command').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-			const username = '{{ username }}';
-			const model = formData.get('model');
-			const aiName = model.includes('claude') ? 'Claude' : 'ChatGPT';
-			messages.innerHTML += `<div class="message"><b>${username}:</b> ${userMessage}</div>`;
-			messages.innerHTML += `<div class="message"><b>${aiName}:</b> <span class="ai-response"></span></div>`;
-			const aiResponse = messages.lastElementChild.querySelector('.ai-response');
-			
-			// Scroll to bottom when sending a new message
-			document.getElementById('output').scrollTop = document.getElementById('output').scrollHeight;
-			
-			fetch('/stream', {
-				method: 'POST',
-				body: formData
-			}).then(response => {
-				const reader = response.body.getReader();
-				const decoder = new TextDecoder();
-				function read() {
-					reader.read().then(({ done, value }) => {
-						if (done) return;
-						const text = decoder.decode(value);
-						aiResponse.innerHTML += text;
-						const outputDiv = document.getElementById('output');
-						if (isScrolledToBottom(outputDiv)) {
-							messages.scrollIntoView({ behavior: 'smooth', block: 'end' });
-						}
-						read();
-					});
-				}
-				read();
-			});
-			form.reset();
-			const textarea = document.getElementById('command');
-			adjustTextareaHeight(textarea);
-			textarea.focus();
-			
-			// Update the selected model in the dropdown
-			document.getElementById('model').value = formData.get('model');
-		}
-
-		function adjustTextareaHeight(textarea) {
-			textarea.style.height = '38px';
-			textarea.style.height = Math.max(38, Math.min(textarea.scrollHeight, 121)) + 'px';
-		}
-
-		function handleKeyDown(event) {
-			if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-				event.preventDefault();
-				document.getElementById('input-form').requestSubmit();
-			}
-		}
-
-		// Ensure correct initial height
-		window.onload = function() {
-			adjustTextareaHeight(document.getElementById('command'));
-		};
-
-		document.addEventListener('keydown', function(event) {
-			if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'Q') {
-				event.preventDefault();
-				if (confirm('shut down the server?')) {
-					fetch('/shutdown', { method: 'POST' })
-						.then(response => response.text())
-						.then(data => {
-							alert(data);
-							window.close();
-						})
-						.catch(error => console.error('Error:', error));
-				}
-			}
-		});
-	</script>
+	<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+	<script src="{{ url_for('static', filename='script.js') }}"></script>
 </head>
-<body>
+<body {% if pro_mode %}class="pro-mode"{% endif %} data-username="{{ username }}">
 	<div id="output">
 		<div id="messages">
 			{{ output|safe }}
@@ -173,14 +17,17 @@
 		<textarea id="command" name="command" required autocomplete="off" rows="1" 
 				  oninput="adjustTextareaHeight(this)" 
 				  onkeydown="handleKeyDown(event)"></textarea>
-		<input type="submit" id="submit-button" value="Submit">
-		<select name="model" id="model">
-			{% for model in available_models %}
-				<option value="{{ model }}" {% if model == selected_model %}selected{% endif %}>
-					{% if 'gpt' in model %}GPT-4o{% else %}Claude 3.5 Sonnet{% endif %}
-				</option>
-			{% endfor %}
-		</select>
+		<input type="hidden" name="model" id="hidden-model" value="{{ selected_model }}">
+		{% if not pro_mode %}
+			<input type="submit" id="submit-button" value="Submit">
+			<select name="model" id="model" onchange="document.getElementById('hidden-model').value = this.value">
+				{% for model in available_models %}
+					<option value="{{ model }}" {% if model == selected_model %}selected{% endif %}>
+						{% if 'gpt' in model %}GPT-4o{% else %}Claude 3.5 Sonnet{% endif %}
+					</option>
+				{% endfor %}
+			</select>
+		{% endif %}
 	</form>
 </body>
 </html>
