@@ -1,6 +1,6 @@
 # chatterbox 🦜
 
-<img src="readme_images/chatterbox.jpg">
+<img src="readme_images/chatterbox.jpg"  width="400px">
 
 ## setup instructions
 
