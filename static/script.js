@@ -8,16 +8,16 @@ function submitForm(event) {
 	const formData = new FormData(form);
 	const messages = document.getElementById('messages');
 	const userMessage = formData.get('command').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-	const username = document.body.dataset.username; // Get username from data attribute
+	const username = document.body.dataset.username;
 	const model = formData.get('model');
 	const aiName = model.includes('claude') ? 'Claude' : 'ChatGPT';
 	messages.innerHTML += `<div class="message"><b>${username}:</b> ${userMessage}</div>`;
 	messages.innerHTML += `<div class="message"><b>${aiName}:</b> <span class="ai-response"></span></div>`;
 	const aiResponse = messages.lastElementChild.querySelector('.ai-response');
-	
-	// Scroll to bottom when sending a new message
+
 	document.getElementById('output').scrollTop = document.getElementById('output').scrollHeight;
-	
+
+	let responseBuffer = '';
 	fetch('/stream', {
 		method: 'POST',
 		body: formData
@@ -26,9 +26,13 @@ function submitForm(event) {
 		const decoder = new TextDecoder();
 		function read() {
 			reader.read().then(({ done, value }) => {
-				if (done) return;
+				if (done) {
+					aiResponse.innerHTML = formatResponse(responseBuffer);
+					return;
+				}
 				const text = decoder.decode(value);
-				aiResponse.innerHTML += text;
+				responseBuffer += text;
+				aiResponse.innerHTML = formatResponse(responseBuffer);
 				const outputDiv = document.getElementById('output');
 				if (isScrolledToBottom(outputDiv)) {
 					messages.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -42,9 +46,15 @@ function submitForm(event) {
 	const textarea = document.getElementById('command');
 	adjustTextareaHeight(textarea);
 	textarea.focus();
-	
-	// Update the selected model in the dropdown
+
 	document.getElementById('model').value = formData.get('model');
+}
+
+function formatResponse(text) {
+    // Ensure <pre><code> blocks are properly closed
+    return text.replace(/<pre><code class="language-(\w+)">([\s\S]*?)(?:<\/code><\/pre>|$)/g, 
+        (match, lang, code) => `<pre><code class="language-${lang}">${code}</code></pre>`
+    );
 }
 
 function adjustTextareaHeight(textarea) {

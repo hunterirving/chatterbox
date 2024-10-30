@@ -8,6 +8,7 @@ import time
 from openai import OpenAI
 from anthropic import Anthropic
 import config
+import re
 
 def check_api_keys():
 	api_keys_present = {
@@ -35,9 +36,8 @@ def shutdown_server():
 	
 	for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
 		try:
-			# Check if the process is python and if its command line contains 'chatterbox.py'
 			if 'python' in proc.name().lower() and any('chatterbox.py' in cmd.lower() for cmd in proc.cmdline()):
-				if proc.pid != current_pid:  # Don't kill the current process yet
+				if proc.pid != current_pid:
 					print(f"Terminating process: {proc.pid}")
 					os.kill(proc.pid, signal.SIGKILL)
 		except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
@@ -68,16 +68,33 @@ def web_interface():
 			ai_name = "Claude" if "claude" in msg.get('model', selected_model) else "ChatGPT"
 			output += f'<div class="message"><b>{ai_name}:</b> {msg["content"]}</div>'
 
-	# Ensure selected_model is in available_models, otherwise select the first available model
 	if selected_model not in available_models and available_models:
 		selected_model = available_models[0]
 
 	return render_template('template.html', 
-							output=output, 
-							selected_model=selected_model, 
-							username=username, 
-							available_models=available_models,
-							pro_mode=getattr(config, 'PRO_MODE', False))
+						   output=output, 
+						   selected_model=selected_model, 
+						   username=username, 
+						   available_models=available_models,
+						   pro_mode=getattr(config, 'PRO_MODE', False))
+
+def format_code_blocks(content):
+	# Format multi-line code blocks
+	content = re.sub(
+		r'<pre><code class="language-(\w+)">(.*?)</code></pre>',
+		lambda m: f'<pre><code class="language-{m.group(1)}">{m.group(2)}</code></pre>',
+		content,
+		flags=re.DOTALL
+	)
+	
+	# Format inline code
+	content = re.sub(
+		r'`([^`\n]+)`',
+		r'<code>\1</code>',
+		content
+	)
+	
+	return content
 
 @app.route('/stream', methods=['POST'])
 def stream():
@@ -85,7 +102,6 @@ def stream():
 	user_input = request.form['command']
 	selected_model = request.form['model']
 
-	# Ensure the selected model is available
 	if selected_model not in available_models:
 		return Response("Error: Selected model is not available.", content_type='text/plain')
 
@@ -111,8 +127,9 @@ def stream():
 			)
 			for chunk in response:
 				if chunk.choices[0].delta.content is not None:
-					yield chunk.choices[0].delta.content
-					response_content += chunk.choices[0].delta.content
+					chunk_text = chunk.choices[0].delta.content
+					yield chunk_text
+					response_content += chunk_text
 		else:
 			if 'Anthropic' not in clients:
 				yield "Error: Anthropic API key is not available."
@@ -126,17 +143,18 @@ def stream():
 			)
 			for chunk in response:
 				if chunk.type == 'content_block_delta':
-					yield chunk.delta.text
-					response_content += chunk.delta.text
-		
-		messages.append({"role": "assistant", "content": response_content, "model": selected_model})
+					chunk_text = chunk.delta.text
+					yield chunk_text
+					response_content += chunk_text
 
-	return Response(stream_with_context(generate()), content_type='text/plain')
+		formatted_response = format_code_blocks(response_content)
+		messages.append({"role": "assistant", "content": formatted_response, "model": selected_model})
 
+	return Response(stream_with_context(generate()), content_type='text/html')
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
 	shutdown_server()
-	return '', 204  # Return an empty response with a 204 No Content status
+	return '', 204
 
 def signal_handler(sig, frame):
 	print('Caught signal, shutting down...')
