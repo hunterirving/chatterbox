@@ -7,7 +7,7 @@ function submitForm(event) {
 	const form = event.target;
 	const formData = new FormData(form);
 	const messages = document.getElementById('messages');
-	const userMessage = formData.get('command').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+	const userMessage = formData.get('command').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 	const username = document.body.dataset.username;
 	const model = formData.get('model');
 	const aiName = model.includes('claude') ? 'Claude' : 'ChatGPT';
@@ -51,10 +51,15 @@ function submitForm(event) {
 }
 
 function formatResponse(text) {
-    // Ensure <pre><code> blocks are properly closed
-    return text.replace(/<pre><code class="language-(\w+)">([\s\S]*?)(?:<\/code><\/pre>|$)/g, 
-        (match, lang, code) => `<pre><code class="language-${lang}">${code}</code></pre>`
-    );
+	// Encode HTML characters
+	text = text.replace(/&/g, '&amp;')
+			   .replace(/</g, '&lt;')
+			   .replace(/>/g, '&gt;');
+
+	// Ensure <pre><code> blocks are properly closed
+	return text.replace(/&lt;pre&gt;&lt;code class="language-(\w+)"&gt;([\s\S]*?)(?:&lt;\/code&gt;&lt;\/pre&gt;|$)/g, 
+		(match, lang, code) => `<pre><code class="language-${lang}">${code}</code></pre>`
+	);
 }
 
 function adjustTextareaHeight(textarea) {
@@ -69,9 +74,29 @@ function handleKeyDown(event) {
 	}
 }
 
-// Ensure correct initial height
+function displayStoredMessages(messages) {
+	const messagesContainer = document.getElementById('messages');
+	messagesContainer.innerHTML = '';
+	messages.forEach(message => {
+		const encodedContent = formatResponse(message.content);
+		messagesContainer.innerHTML += `<div class="message"><b>${message.sender}:</b> ${encodedContent}</div>`;
+	});
+}
+
+function fetchAndDisplayStoredMessages() {
+	fetch('/get-stored-messages')
+		.then(response => response.json())
+		.then(messages => {
+			displayStoredMessages(messages);
+		})
+		.catch(error => {
+			console.error('Error fetching stored messages:', error);
+		});
+}
+
 window.onload = function() {
 	adjustTextareaHeight(document.getElementById('command'));
+	fetchAndDisplayStoredMessages();
 };
 
 document.addEventListener('keydown', function(event) {

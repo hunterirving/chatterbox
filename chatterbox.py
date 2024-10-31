@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, Response, stream_with_context
+from flask import Flask, request, render_template, Response, stream_with_context, jsonify
 import os
 import signal
 import psutil
@@ -78,24 +78,6 @@ def web_interface():
 						   available_models=available_models,
 						   pro_mode=getattr(config, 'PRO_MODE', False))
 
-def format_code_blocks(content):
-	# Format multi-line code blocks
-	content = re.sub(
-		r'<pre><code class="language-(\w+)">(.*?)</code></pre>',
-		lambda m: f'<pre><code class="language-{m.group(1)}">{m.group(2)}</code></pre>',
-		content,
-		flags=re.DOTALL
-	)
-	
-	# Format inline code
-	content = re.sub(
-		r'`([^`\n]+)`',
-		r'<code>\1</code>',
-		content
-	)
-	
-	return content
-
 @app.route('/stream', methods=['POST'])
 def stream():
 	global messages, selected_model
@@ -147,10 +129,28 @@ def stream():
 					yield chunk_text
 					response_content += chunk_text
 
-		formatted_response = format_code_blocks(response_content)
-		messages.append({"role": "assistant", "content": formatted_response, "model": selected_model})
+		messages.append({"role": "assistant", "content": response_content, "model": selected_model})
 
 	return Response(stream_with_context(generate()), content_type='text/html')
+
+@app.route('/get-stored-messages', methods=['GET'])
+def get_stored_messages():
+	global messages
+	formatted_messages = []
+	for msg in messages:
+		if msg['role'] == 'user':
+			formatted_messages.append({
+				"sender": username,
+				"content": msg["content"]
+			})
+		elif msg['role'] == 'assistant':
+			ai_name = "Claude" if "claude" in msg.get('model', selected_model) else "ChatGPT"
+			formatted_messages.append({
+				"sender": ai_name,
+				"content": msg["content"]
+			})
+	return jsonify(formatted_messages)
+
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
 	shutdown_server()

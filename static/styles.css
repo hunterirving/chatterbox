@@ -9,6 +9,7 @@ body {
 	color: #fefcf8;
 	font-size: 1.21rem;
 }
+
 #output {
 	flex-grow: 1;
 	overflow-y: auto;
@@ -17,10 +18,13 @@ body {
 	display: flex;
 	flex-direction: column-reverse;
 }
+
 #messages {
 	display: flex;
 	flex-direction: column;
+	width: 100%;
 }
+
 #input-form {
 	padding: 11px;
 	background-color: #2b2a33;
@@ -28,6 +32,7 @@ body {
 	justify-content: space-between;
 	align-items: center;
 }
+
 #command {
 	flex-grow: 1;
 	margin-right: 11px;
@@ -46,14 +51,17 @@ body {
 	background-color: #111517;
 	color: #fefcf8;
 }
+
 #command:focus {
 	box-shadow: none;
 }
+
 .message {
 	margin-bottom: 11px;
 	white-space: pre-wrap;
 	word-wrap: break-word;
 }
+
 #submit-button {
 	margin-right: 11px;
 	height: 38px;
@@ -64,6 +72,7 @@ body {
 	padding: 0 11px;
 	cursor: pointer;
 }
+
 #model {
 	height: 38px;
 	background-color: #444;
@@ -71,4 +80,12 @@ body {
 	border: none;
 	border-radius: 6px;
 	padding: 0 6px;
+}
+
+pre {
+	background-color:black;
+	width: 100%;
+	overflow: scroll;
+	tab-size: 4;
+	margin-bottom: 0;
 }
