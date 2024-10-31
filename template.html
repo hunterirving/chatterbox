@@ -5,7 +5,9 @@
 	<meta charset="UTF-8">
 	<title>chatterbox</title>
 	<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+	<link rel="stylesheet" href="{{ url_for('static', filename='prism.css') }}">
 	<script src="{{ url_for('static', filename='script.js') }}"></script>
+	<script src="{{ url_for('static', filename='prism.js') }}"></script>
 </head>
 <body {% if pro_mode %}class="pro-mode"{% endif %} data-username="{{ username }}">
 	<div id="output">

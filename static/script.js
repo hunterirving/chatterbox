@@ -2,6 +2,10 @@ function isScrolledToBottom(el) {
 	return el.scrollHeight - el.clientHeight <= el.scrollTop + 1;
 }
 
+function applyPrismStyling() {
+	Prism.highlightAll();
+}
+
 function submitForm(event) {
 	event.preventDefault();
 	const form = event.target;
@@ -27,12 +31,18 @@ function submitForm(event) {
 		function read() {
 			reader.read().then(({ done, value }) => {
 				if (done) {
-					aiResponse.innerHTML = formatResponse(responseBuffer);
 					return;
 				}
 				const text = decoder.decode(value);
 				responseBuffer += text;
 				aiResponse.innerHTML = formatResponse(responseBuffer);
+				
+				// Apply Prism highlighting to the last added code block
+				const codeBlocks = aiResponse.querySelectorAll('pre code');
+				if (codeBlocks.length > 0) {
+					Prism.highlightElement(codeBlocks[codeBlocks.length - 1]);
+				}
+				
 				const outputDiv = document.getElementById('output');
 				if (isScrolledToBottom(outputDiv)) {
 					messages.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -88,16 +98,18 @@ function fetchAndDisplayStoredMessages() {
 		.then(response => response.json())
 		.then(messages => {
 			displayStoredMessages(messages);
+			applyPrismStyling();
 		})
 		.catch(error => {
 			console.error('Error fetching stored messages:', error);
 		});
 }
 
-window.onload = function() {
+document.addEventListener('DOMContentLoaded', function() {
 	adjustTextareaHeight(document.getElementById('command'));
 	fetchAndDisplayStoredMessages();
-};
+	applyPrismStyling();
+});
 
 document.addEventListener('keydown', function(event) {
 	if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'Q') {

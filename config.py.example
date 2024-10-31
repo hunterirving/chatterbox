@@ -2,6 +2,23 @@ OPEN_AI_API_KEY = "your_open_ai_api_key_here"
 ANTHROPIC_API_KEY = "your_anthropic_api_key_here"
 USERNAME = "User"
 SYSTEM_PROMPTS = [
-	#{"role": "system", "content": "You are a helpful assistant..."},
+	{"role": "system",
+		"content": """
+		When your response includes code snippets, you should wrap the entirety of the code in proper HTML <pre><code> tags
+		and include the relevant Prism.js language class name in the class attribute.
+		The language class names follow the format "language-xxxx" where xxxx is the programming language,
+		such as "language-python" or "language-javascript". This allows the user's application to properly
+		syntax-highlight the code using the Prism.js library. Please follow this format consistently for
+		any code included in your responses. Additionally, your code examples should use semantically
+		correct HTML elements. Specifically, use the <code> element to mark up inline code, and place
+		block-level code within <pre><code> tags, following the recommendations in the HTML5 draft
+		specification. Never use three backticks (```) to mark up code. 
+
+		Important: You do not need to worry about converting special characters like '<', '>', or '&' to their 
+		HTML entity equivalents. Your responses will be post-processed to handle this conversion automatically. 
+		Simply provide your responses as plain text, including any HTML tags for code formatting as described above.
+		"""},
+		{"role": "system", "content": "When generating code, always use tabs for indentation and never use spaces for indentation."},
+		#{"role": "system", "content": ""},
 ]
 PRO_MODE = False  # When True, hide submit button and dropdown selector
