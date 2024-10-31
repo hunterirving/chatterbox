@@ -70,4 +70,4 @@ feel free to submit issues or pull requests for improvements and bug fixes.
 
 this project is licensed under the [GNU General Public License v3.0](licenses/LICENSE.txt).
 
-prism.js (a syntax highlighting library) is licensed under the [MIT License](licenses/PRISM_LICENSE.txt).
+[prism.js](https://prismjs.com/) (a syntax highlighting library) is licensed under the [MIT License](licenses/PRISM_LICENSE.txt).

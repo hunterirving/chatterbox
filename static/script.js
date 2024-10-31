@@ -106,7 +106,9 @@ function fetchAndDisplayStoredMessages() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-	adjustTextareaHeight(document.getElementById('command'));
+	const textarea = document.getElementById('command');
+	adjustTextareaHeight(textarea);
+	textarea.focus(); // Add this line to focus the textarea
 	fetchAndDisplayStoredMessages();
 	applyPrismStyling();
 });
