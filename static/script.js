@@ -1,5 +1,6 @@
 function isScrolledToBottom(el) {
-	return el.scrollHeight - el.clientHeight <= el.scrollTop + 1;
+	const buffer = 2;
+	return Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop) <= buffer;
 }
 
 function applyPrismStyling() {
@@ -11,15 +12,23 @@ function submitForm(event) {
 	const form = event.target;
 	const formData = new FormData(form);
 	const messages = document.getElementById('messages');
+	const outputDiv = document.getElementById('output');
 	const userMessage = formData.get('command').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 	const username = document.body.dataset.username;
 	const model = formData.get('model');
 	const aiName = model.includes('claude') ? 'Claude' : 'ChatGPT';
+	
+	// Store the initial scroll state
+	const wasAtBottom = isScrolledToBottom(outputDiv);
+	
 	messages.innerHTML += `<div class="message"><b>${username}:</b> ${userMessage}</div>`;
 	messages.innerHTML += `<div class="message"><b>${aiName}:</b> <span class="ai-response"></span></div>`;
 	const aiResponse = messages.lastElementChild.querySelector('.ai-response');
 
-	document.getElementById('output').scrollTop = document.getElementById('output').scrollHeight;
+	// Only scroll if we were at the bottom
+	if (wasAtBottom) {
+		outputDiv.scrollTop = outputDiv.scrollHeight;
+	}
 
 	let responseBuffer = '';
 	fetch('/stream', {
@@ -28,36 +37,47 @@ function submitForm(event) {
 	}).then(response => {
 		const reader = response.body.getReader();
 		const decoder = new TextDecoder();
+		
 		function read() {
 			reader.read().then(({ done, value }) => {
 				if (done) {
+					// Final layout adjustment after stream completes
+					setTimeout(() => {
+						if (wasAtBottom) {
+							messages.scrollIntoView({ behavior: 'auto', block: 'end' });
+						}
+					}, 100);
 					return;
 				}
+				
 				const text = decoder.decode(value);
 				responseBuffer += text;
 				aiResponse.innerHTML = formatResponse(responseBuffer);
 				
-				// Apply Prism highlighting to the last added code block
+				// Handle code block highlighting
 				const codeBlocks = aiResponse.querySelectorAll('pre code');
 				if (codeBlocks.length > 0) {
-					Prism.highlightElement(codeBlocks[codeBlocks.length - 1]);
+					const lastBlock = codeBlocks[codeBlocks.length - 1];
+					Prism.highlightElement(lastBlock);
 				}
 				
-				const outputDiv = document.getElementById('output');
-				if (isScrolledToBottom(outputDiv)) {
-					messages.scrollIntoView({ behavior: 'smooth', block: 'end' });
-				}
+				// Use RAF to ensure layout calculations are complete
+				requestAnimationFrame(() => {
+					if (wasAtBottom) {
+						outputDiv.scrollTop = outputDiv.scrollHeight;
+					}
+				});
+				
 				read();
 			});
 		}
 		read();
 	});
+
 	form.reset();
 	const textarea = document.getElementById('command');
 	adjustTextareaHeight(textarea);
 	textarea.focus();
-
-	document.getElementById('model').value = formData.get('model');
 }
 
 function formatResponse(text) {
