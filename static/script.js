@@ -3,6 +3,10 @@ function isScrolledToBottom(el) {
 	return Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop) <= buffer;
 }
 
+function scrollToBottom(el) {
+	el.scrollTop = el.scrollHeight;
+}
+
 function applyPrismStyling() {
 	Prism.highlightAll();
 }
@@ -21,13 +25,24 @@ function submitForm(event) {
 	// Store the initial scroll state
 	const wasAtBottom = isScrolledToBottom(outputDiv);
 	
+	// Add messages
 	messages.innerHTML += `<div class="message"><b>${username}:</b> ${userMessage}</div>`;
 	messages.innerHTML += `<div class="message"><b>${aiName}:</b> <span class="ai-response"></span></div>`;
 	const aiResponse = messages.lastElementChild.querySelector('.ai-response');
 
-	// Only scroll if we were at the bottom
+	// Create a scroll observer
+	let lastKnownScrollPosition = outputDiv.scrollTop;
+	let userHasScrolled = false;
+
+	outputDiv.addEventListener('scroll', () => {
+		if (Math.abs(outputDiv.scrollTop - lastKnownScrollPosition) > 50) {
+			userHasScrolled = true;
+		}
+	});
+
+	// Initial scroll if at bottom
 	if (wasAtBottom) {
-		outputDiv.scrollTop = outputDiv.scrollHeight;
+		requestAnimationFrame(() => scrollToBottom(outputDiv));
 	}
 
 	let responseBuffer = '';
@@ -41,12 +56,9 @@ function submitForm(event) {
 		function read() {
 			reader.read().then(({ done, value }) => {
 				if (done) {
-					// Final layout adjustment after stream completes
-					setTimeout(() => {
-						if (wasAtBottom) {
-							messages.scrollIntoView({ behavior: 'auto', block: 'end' });
-						}
-					}, 100);
+					if (wasAtBottom && !userHasScrolled) {
+						requestAnimationFrame(() => scrollToBottom(outputDiv));
+					}
 					return;
 				}
 				
@@ -61,12 +73,9 @@ function submitForm(event) {
 					Prism.highlightElement(lastBlock);
 				}
 				
-				// Use RAF to ensure layout calculations are complete
-				requestAnimationFrame(() => {
-					if (wasAtBottom) {
-						outputDiv.scrollTop = outputDiv.scrollHeight;
-					}
-				});
+				if (wasAtBottom && !userHasScrolled) {
+					requestAnimationFrame(() => scrollToBottom(outputDiv));
+				}
 				
 				read();
 			});

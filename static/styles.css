@@ -17,12 +17,14 @@ body {
 	padding: 11px;
 	display: flex;
 	flex-direction: column-reverse;
+	min-height: 200px;
 }
 
 #messages {
 	display: flex;
 	flex-direction: column;
 	width: 100%;
+	padding-top: 80vh;
 }
 
 #input-form {
@@ -42,7 +44,7 @@ body {
 	padding: 6px;
 	padding-left: 14px;
 	padding-right: 14px;
-	font-family: inherit;
+	font-family: sans-serif;
 	font-size: inherit;
 	border: 1px solid #000000;
 	outline: none;
@@ -92,6 +94,7 @@ pre {
 	tab-size: 4;
 	margin: 11px 0;
 	padding: 11px;
+	padding-top: 9px;
 	border-radius: 10px;
 	position: relative;
 	scrollbar-width: none;  /* Firefox */
