@@ -64,14 +64,19 @@ function submitForm(event) {
 				
 				const text = decoder.decode(value);
 				responseBuffer += text;
+				
 				aiResponse.innerHTML = formatResponse(responseBuffer);
 				
-				// Handle code block highlighting
+				// Highlight all code blocks, including incomplete ones
 				const codeBlocks = aiResponse.querySelectorAll('pre code');
-				if (codeBlocks.length > 0) {
-					const lastBlock = codeBlocks[codeBlocks.length - 1];
-					Prism.highlightElement(lastBlock);
-				}
+				codeBlocks.forEach(block => {
+					// Only highlight if not already highlighted
+					if (!block.classList.contains('language-none') && 
+						!block.classList.contains('prism-highlighted')) {
+						Prism.highlightElement(block);
+						block.classList.add('prism-highlighted');
+					}
+				});
 				
 				if (wasAtBottom && !userHasScrolled) {
 					requestAnimationFrame(() => scrollToBottom(outputDiv));
@@ -90,15 +95,28 @@ function submitForm(event) {
 }
 
 function formatResponse(text) {
-	// Encode HTML characters
+	// First encode HTML characters
 	text = text.replace(/&/g, '&amp;')
 			   .replace(/</g, '&lt;')
 			   .replace(/>/g, '&gt;');
-
-	// Ensure <pre><code> blocks are properly closed
-	return text.replace(/&lt;pre&gt;&lt;code class="language-(\w+)"&gt;([\s\S]*?)(?:&lt;\/code&gt;&lt;\/pre&gt;|$)/g, 
-		(match, lang, code) => `<pre><code class="language-${lang}">${code}</code></pre>`
-	);
+	
+	// Handle both HTML-style and markdown-style code blocks
+	text = text
+		// Handle HTML-style code blocks
+		.replace(/&lt;pre&gt;&lt;code(?:\s+class="language-(\w+)")?\s*&gt;/g, 
+			(match, lang) => {
+				const langAttribute = lang ? ` class="language-${lang}"` : '';
+				return `<pre><code${langAttribute}>`;
+			}
+		)
+		.replace(/&lt;\/code&gt;&lt;\/pre&gt;/g, '</code></pre>')
+		// Handle markdown-style code blocks
+		.replace(/```(\w+)?\n([\s\S]*?)(?:```|$)/g, (match, lang, code) => {
+			const langAttribute = lang ? ` class="language-${lang}"` : '';
+			return `<pre><code${langAttribute}>${code}</code></pre>`;
+		});
+	
+	return text;
 }
 
 function adjustTextareaHeight(textarea) {

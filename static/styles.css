@@ -36,7 +36,6 @@ body {
 
 #command {
 	flex-grow: 1;
-	margin-right: 11px;
 	min-height: 38px;
 	max-height: 121px;
 	resize: none;
