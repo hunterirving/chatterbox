@@ -46,6 +46,7 @@ function submitForm(event) {
 	}
 
 	let responseBuffer = '';
+
 	fetch('/stream', {
 		method: 'POST',
 		body: formData
@@ -56,6 +57,14 @@ function submitForm(event) {
 		function read() {
 			reader.read().then(({ done, value }) => {
 				if (done) {
+					// Final pass to ensure all code blocks are properly highlighted
+					const codeBlocks = aiResponse.querySelectorAll('pre code');
+					codeBlocks.forEach(block => {
+						if (!block.classList.contains('prism-highlighted')) {
+							Prism.highlightElement(block);
+							block.classList.add('prism-highlighted');
+						}
+					});
 					if (wasAtBottom && !userHasScrolled) {
 						requestAnimationFrame(() => scrollToBottom(outputDiv));
 					}
@@ -67,12 +76,14 @@ function submitForm(event) {
 				
 				aiResponse.innerHTML = formatResponse(responseBuffer);
 				
-				// Highlight all code blocks, including incomplete ones
+				// Highlight code blocks and ensure toolbar is added
 				const codeBlocks = aiResponse.querySelectorAll('pre code');
 				codeBlocks.forEach(block => {
-					// Only highlight if not already highlighted
-					if (!block.classList.contains('language-none') && 
-						!block.classList.contains('prism-highlighted')) {
+					if (!block.classList.contains('prism-highlighted')) {
+						// Ensure block has a language class
+						if (!Array.from(block.classList).some(cls => cls.startsWith('language-'))) {
+							block.classList.add('language-plaintext');
+						}
 						Prism.highlightElement(block);
 						block.classList.add('prism-highlighted');
 					}
@@ -105,15 +116,41 @@ function formatResponse(text) {
 		// Handle HTML-style code blocks
 		.replace(/&lt;pre&gt;&lt;code(?:\s+class="language-(\w+)")?\s*&gt;/g, 
 			(match, lang) => {
-				const langAttribute = lang ? ` class="language-${lang}"` : '';
-				return `<pre><code${langAttribute}>`;
+				const langAttribute = lang ? ` class="language-${lang}"` : ' class="language-plaintext"';
+				return `<pre data-prismjs-copy="Copy" data-prismjs-copy-success="Copied!" data-prismjs-copy-error="Press Ctrl+C to copy"><code${langAttribute}>`;
 			}
 		)
 		.replace(/&lt;\/code&gt;&lt;\/pre&gt;/g, '</code></pre>')
-		// Handle markdown-style code blocks
+		// Handle markdown-style code blocks with language detection
 		.replace(/```(\w+)?\n([\s\S]*?)(?:```|$)/g, (match, lang, code) => {
-			const langAttribute = lang ? ` class="language-${lang}"` : '';
-			return `<pre><code${langAttribute}>${code}</code></pre>`;
+			// Try to detect language from first line if not specified
+			if (!lang && code.trim()) {
+				const firstLine = code.trim().split('\n')[0].toLowerCase();
+				// Common file extensions and language indicators
+				const langMap = {
+					'python': 'python',
+					'.py': 'python',
+					'javascript': 'javascript',
+					'.js': 'javascript',
+					'html': 'html',
+					'.html': 'html',
+					'css': 'css',
+					'.css': 'css',
+					'bash': 'bash',
+					'shell': 'bash',
+					'$': 'bash',
+					'json': 'json',
+					'.json': 'json',
+				};
+				for (const [key, value] of Object.entries(langMap)) {
+					if (firstLine.includes(key)) {
+						lang = value;
+						break;
+					}
+				}
+			}
+			const langAttribute = lang ? ` class="language-${lang}"` : ' class="language-plaintext"';
+			return `<pre data-prismjs-copy="Copy" data-prismjs-copy-success="Copied!" data-prismjs-copy-error="Press Ctrl+C to copy"><code${langAttribute}>${code}</code></pre>`;
 		});
 	
 	return text;
