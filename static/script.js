@@ -1,5 +1,5 @@
 function isScrolledToBottom(el) {
-	const buffer = 2;
+	const buffer = 20;
 	return Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop) <= buffer;
 }
 
@@ -30,15 +30,28 @@ function submitForm(event) {
 	messages.innerHTML += `<div class="message"><b>${aiName}:</b> <span class="ai-response"></span></div>`;
 	const aiResponse = messages.lastElementChild.querySelector('.ai-response');
 
-	// Create a scroll observer
-	let lastKnownScrollPosition = outputDiv.scrollTop;
+	// Track scroll position changes
+	let lastScrollTop = outputDiv.scrollTop;
+	let scrollTimeout;
 	let userHasScrolled = false;
+	let isScrolling = false;
 
-	outputDiv.addEventListener('scroll', () => {
-		if (Math.abs(outputDiv.scrollTop - lastKnownScrollPosition) > 50) {
+	const scrollHandler = () => {
+		if (Math.abs(outputDiv.scrollTop - lastScrollTop) > 50) {
 			userHasScrolled = true;
 		}
-	});
+		lastScrollTop = outputDiv.scrollTop;
+		
+		// Clear previous timeout
+		clearTimeout(scrollTimeout);
+		
+		// Set new timeout
+		scrollTimeout = setTimeout(() => {
+			isScrolling = false;
+		}, 150);
+	};
+
+	outputDiv.addEventListener('scroll', scrollHandler);
 
 	// Initial scroll if at bottom
 	if (wasAtBottom) {
@@ -46,6 +59,19 @@ function submitForm(event) {
 	}
 
 	let responseBuffer = '';
+	let lastAnimationFrame;
+
+	const updateScroll = () => {
+		if (wasAtBottom && !userHasScrolled && !isScrolling) {
+			if (lastAnimationFrame) {
+				cancelAnimationFrame(lastAnimationFrame);
+			}
+			lastAnimationFrame = requestAnimationFrame(() => {
+				scrollToBottom(outputDiv);
+				lastAnimationFrame = null;
+			});
+		}
+	};
 
 	fetch('/stream', {
 		method: 'POST',
@@ -57,14 +83,7 @@ function submitForm(event) {
 		function read() {
 			reader.read().then(({ done, value }) => {
 				if (done) {
-					// Final pass to ensure all code blocks are properly highlighted
-					const codeBlocks = aiResponse.querySelectorAll('pre code');
-					codeBlocks.forEach(block => {
-						if (!block.classList.contains('prism-highlighted')) {
-							Prism.highlightElement(block);
-							block.classList.add('prism-highlighted');
-						}
-					});
+					outputDiv.removeEventListener('scroll', scrollHandler);
 					if (wasAtBottom && !userHasScrolled) {
 						requestAnimationFrame(() => scrollToBottom(outputDiv));
 					}
@@ -76,7 +95,7 @@ function submitForm(event) {
 				
 				aiResponse.innerHTML = formatResponse(responseBuffer);
 				
-				// Highlight code blocks and ensure toolbar is added
+				// Highlight code blocks
 				const codeBlocks = aiResponse.querySelectorAll('pre code');
 				codeBlocks.forEach(block => {
 					if (!block.classList.contains('prism-highlighted')) {
@@ -89,10 +108,7 @@ function submitForm(event) {
 					}
 				});
 				
-				if (wasAtBottom && !userHasScrolled) {
-					requestAnimationFrame(() => scrollToBottom(outputDiv));
-				}
-				
+				updateScroll();
 				read();
 			});
 		}

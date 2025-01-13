@@ -25,6 +25,7 @@ body {
 	flex-direction: column;
 	width: 100%;
 	padding-top: 80vh;
+	contain: paint;
 }
 
 #input-form {
@@ -63,6 +64,7 @@ body {
 	white-space: pre-wrap;
 	word-wrap: break-word;
 	max-width: 100%;
+	contain: content;
 }
 
 #submit-button {
