@@ -22,7 +22,7 @@ function submitForm(event) {
 	const model = formData.get('model');
 	const aiName = model.includes('claude') ? 'Claude' : 'ChatGPT';
 	
-	// Store the initial scroll state
+	// Store the initial scroll state only
 	const wasAtBottom = isScrolledToBottom(outputDiv);
 	
 	// Add messages
@@ -30,22 +30,19 @@ function submitForm(event) {
 	messages.innerHTML += `<div class="message"><b>${aiName}:</b> <span class="ai-response"></span></div>`;
 	const aiResponse = messages.lastElementChild.querySelector('.ai-response');
 
-	// Track scroll position changes
-	let lastScrollTop = outputDiv.scrollTop;
-	let scrollTimeout;
+	// Only scroll if we were at bottom initially
+	if (wasAtBottom) {
+		requestAnimationFrame(() => scrollToBottom(outputDiv));
+	}
+
+	// Track user scrolling
 	let userHasScrolled = false;
 	let isScrolling = false;
+	let scrollTimeout;
 
 	const scrollHandler = () => {
-		if (Math.abs(outputDiv.scrollTop - lastScrollTop) > 50) {
-			userHasScrolled = true;
-		}
-		lastScrollTop = outputDiv.scrollTop;
-		
-		// Clear previous timeout
+		userHasScrolled = true;
 		clearTimeout(scrollTimeout);
-		
-		// Set new timeout
 		scrollTimeout = setTimeout(() => {
 			isScrolling = false;
 		}, 150);
@@ -53,25 +50,14 @@ function submitForm(event) {
 
 	outputDiv.addEventListener('scroll', scrollHandler);
 
-	// Initial scroll if at bottom
-	if (wasAtBottom) {
-		requestAnimationFrame(() => scrollToBottom(outputDiv));
-	}
+	const updateScroll = () => {
+		if (wasAtBottom && !userHasScrolled && !isScrolling) {
+			requestAnimationFrame(() => scrollToBottom(outputDiv));
+		}
+	};
 
 	let responseBuffer = '';
 	let lastAnimationFrame;
-
-	const updateScroll = () => {
-		if (wasAtBottom && !userHasScrolled && !isScrolling) {
-			if (lastAnimationFrame) {
-				cancelAnimationFrame(lastAnimationFrame);
-			}
-			lastAnimationFrame = requestAnimationFrame(() => {
-				scrollToBottom(outputDiv);
-				lastAnimationFrame = null;
-			});
-		}
-	};
 
 	fetch('/stream', {
 		method: 'POST',
