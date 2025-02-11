@@ -3,8 +3,11 @@ function isScrolledToBottom(el) {
 	return Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop) <= buffer;
 }
 
-function scrollToBottom(el) {
-	el.scrollTop = el.scrollHeight;
+function scrollToBottom(element, smooth = true) {
+	element.scrollTo({
+		top: element.scrollHeight,
+		behavior: smooth ? 'smooth' : 'auto'
+	});
 }
 
 function applyPrismStyling() {
@@ -22,84 +25,90 @@ function submitForm(event) {
 	const model = formData.get('model');
 	const aiName = model.includes('claude') ? 'Claude' : 'ChatGPT';
 	
-	// Store the initial scroll state only
-	const wasAtBottom = isScrolledToBottom(outputDiv);
+	// First, scroll to bottom
+	scrollToBottom(outputDiv);
 	
-	// Add messages
-	messages.innerHTML += `<div class="message"><b>${username}:</b> ${userMessage}</div>`;
-	messages.innerHTML += `<div class="message"><b>${aiName}:</b> <span class="ai-response"></span></div>`;
-	const aiResponse = messages.lastElementChild.querySelector('.ai-response');
+	// Small delay to ensure scroll completes
+	setTimeout(() => {
+		// Store the initial scroll state only after we've scrolled to bottom
+		const wasAtBottom = isScrolledToBottom(outputDiv);
+		
+		// Add messages
+		messages.innerHTML += `<div class="message"><b>${username}:</b> ${userMessage}</div>`;
+		messages.innerHTML += `<div class="message"><b>${aiName}:</b> <span class="ai-response"></span></div>`;
+		const aiResponse = messages.lastElementChild.querySelector('.ai-response');
 
-	// Only scroll if we were at bottom initially
-	if (wasAtBottom) {
-		requestAnimationFrame(() => scrollToBottom(outputDiv));
-	}
-
-	// Track user scrolling
-	let userHasScrolled = false;
-	let isScrolling = false;
-	let scrollTimeout;
-
-	const scrollHandler = () => {
-		userHasScrolled = true;
-		clearTimeout(scrollTimeout);
-		scrollTimeout = setTimeout(() => {
-			isScrolling = false;
-		}, 150);
-	};
-
-	outputDiv.addEventListener('scroll', scrollHandler);
-
-	const updateScroll = () => {
-		if (wasAtBottom && !userHasScrolled && !isScrolling) {
+		// Only scroll if we were at bottom initially
+		if (wasAtBottom) {
 			requestAnimationFrame(() => scrollToBottom(outputDiv));
 		}
-	};
 
-	let responseBuffer = '';
-	let lastAnimationFrame;
+		// Track user scrolling
+		let userHasScrolled = false;
+		let isScrolling = false;
+		let scrollTimeout;
 
-	fetch('/stream', {
-		method: 'POST',
-		body: formData
-	}).then(response => {
-		const reader = response.body.getReader();
-		const decoder = new TextDecoder();
-		
-		function read() {
-			reader.read().then(({ done, value }) => {
-				if (done) {
-					outputDiv.removeEventListener('scroll', scrollHandler);
-					if (wasAtBottom && !userHasScrolled) {
-						requestAnimationFrame(() => scrollToBottom(outputDiv));
-					}
-					return;
-				}
-				
-				const text = decoder.decode(value);
-				responseBuffer += text;
-				
-				aiResponse.innerHTML = formatResponse(responseBuffer);
-				
-				// Highlight code blocks
-				const codeBlocks = aiResponse.querySelectorAll('pre code');
-				codeBlocks.forEach(block => {
-					if (!block.classList.contains('prism-highlighted')) {
-						// Ensure block has a language class
-						if (!Array.from(block.classList).some(cls => cls.startsWith('language-'))) {
-							block.classList.add('language-plaintext');
+		const scrollHandler = () => {
+			userHasScrolled = true;
+			clearTimeout(scrollTimeout);
+			scrollTimeout = setTimeout(() => {
+				isScrolling = false;
+			}, 150);
+		};
+
+		outputDiv.addEventListener('scroll', scrollHandler);
+
+		const updateScroll = () => {
+			if (wasAtBottom && !userHasScrolled && !isScrolling) {
+				requestAnimationFrame(() => scrollToBottom(outputDiv));
+			}
+		};
+
+		let responseBuffer = '';
+		let lastAnimationFrame;
+
+		fetch('/stream', {
+			method: 'POST',
+			body: formData
+		}).then(response => {
+			const reader = response.body.getReader();
+			const decoder = new TextDecoder();
+			
+			function read() {
+				reader.read().then(({ done, value }) => {
+					if (done) {
+						outputDiv.removeEventListener('scroll', scrollHandler);
+						if (wasAtBottom && !userHasScrolled) {
+							requestAnimationFrame(() => scrollToBottom(outputDiv));
 						}
-						Prism.highlightElement(block);
-						block.classList.add('prism-highlighted');
+						return;
 					}
+					
+					const text = decoder.decode(value);
+					responseBuffer += text;
+					
+					aiResponse.innerHTML = formatResponse(responseBuffer);
+					
+					// Highlight code blocks
+					const codeBlocks = aiResponse.querySelectorAll('pre code');
+					codeBlocks.forEach(block => {
+						if (!block.classList.contains('prism-highlighted')) {
+							// Ensure block has a language class
+							if (!Array.from(block.classList).some(cls => cls.startsWith('language-'))) {
+								block.classList.add('language-plaintext');
+							}
+							Prism.highlightElement(block);
+							block.classList.add('prism-highlighted');
+						}
+					});
+					
+					updateScroll();
+					read();
 				});
-				
-				updateScroll();
-				read();
-			});
-		}
-		read();
-	});
+			}
+			read();
+		});
+	}, 50);  // 50ms delay to ensure scroll completes
 
 	form.reset();
 	const textarea = document.getElementById('command');
@@ -180,7 +189,7 @@ function displayStoredMessages(messages) {
 }
 
 function fetchAndDisplayStoredMessages() {
-	fetch('/get-stored-messages')
+	return fetch('/get-stored-messages')
 		.then(response => response.json())
 		.then(messages => {
 			displayStoredMessages(messages);
@@ -193,10 +202,13 @@ function fetchAndDisplayStoredMessages() {
 
 document.addEventListener('DOMContentLoaded', function() {
 	const textarea = document.getElementById('command');
+	const outputDiv = document.getElementById('output');
 	adjustTextareaHeight(textarea);
-	textarea.focus(); // Add this line to focus the textarea
-	fetchAndDisplayStoredMessages();
-	applyPrismStyling();
+	textarea.focus();
+	fetchAndDisplayStoredMessages().then(() => {
+		scrollToBottom(outputDiv, false);  // false for instant scroll
+		applyPrismStyling();
+	});
 });
 
 document.addEventListener('keydown', function(event) {
